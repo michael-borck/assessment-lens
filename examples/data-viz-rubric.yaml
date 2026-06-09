@@ -1,0 +1,23 @@
+# Example structured rubric for assessment-lens `assess`.
+# This is the central contract — author it by hand for v1 (draft-rubric will
+# later propose one from a free-form spec). `component` is a plain label; assess
+# ignores it. `signals_of_interest` is the OPTIONAL signal->criterion mapping.
+assignment: "Data-Viz Project"
+component: individual
+expected_deliverables:
+  - id: report
+    description: "Written report (~2000 words)"
+    accepts: [document]
+  - id: demo
+    description: "≤5-min recorded demo"
+    accepts: [video]
+rubric:
+  - id: critical-thinking
+    description: "Evidence of critical engagement / analysis"
+    signals_of_interest: [conversation.critical_thinking, reflection.depth]
+  - id: technical-quality
+    description: "Code quality and correctness"
+    signals_of_interest: [code.complexity, code.lint, code.code_level]
+  - id: communication
+    description: "Clarity of written and spoken communication"
+    # no signals pinned -> alignment-check would select at runtime (near-term)

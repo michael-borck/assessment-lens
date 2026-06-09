@@ -1,0 +1,66 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "assessment-lens"
+version = "0.1.0"
+description = "Signals-based assessment — map analyser signals to a rubric as observations, never grades. A human assigns every mark."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Michael Borck", email = "michael.borck@curtin.edu.au" }]
+keywords = ["assessment", "rubric", "education", "edtech", "signals", "lens", "feedback"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+# A lens is a *consumer*, not an analyser: no fastapi / uvicorn / lens-contract /
+# manifest here. It reads rubrics, composes bundle-analyser, and renders reports.
+dependencies = [
+    "pydantic>=2.5.0",
+    "pyyaml>=6.0",
+    "rich>=13.7.0",
+]
+
+[project.optional-dependencies]
+# bundle-analyser is invoked as a subprocess (the `bundle-analyser` CLI on PATH).
+# Install this extra to pull the whole analyser stack into the same environment;
+# otherwise point assessment-lens at an already-installed bundle-analyser.
+analysers = [
+    "bundle-analyser>=0.1.0",
+]
+# Opt-in LLM narration for alignment-check (narrate-and-cite; never scores).
+llm = [
+    "anthropic>=0.7.0",
+    "openai>=1.12.0",
+]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
+]
+
+[tool.uv.sources]
+bundle-analyser = { path = "../bundle-analyser", editable = true }
+
+[project.scripts]
+assessment-lens = "assessment_lens.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/michael-borck/assessment-lens"
+Repository = "https://github.com/michael-borck/assessment-lens"
+Issues = "https://github.com/michael-borck/assessment-lens/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/assessment_lens"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

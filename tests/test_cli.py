@@ -29,13 +29,34 @@ def test_cli_draft_rubric_is_friendly_not_yet(tmp_path):
 
 
 def test_assess_end_to_end_with_stubbed_bundle(tmp_path, monkeypatch):
-    # Stub bundle-analyser so the deterministic spine runs without the analyser stack.
-    fake_signals = {
-        "conversation": {"critical_thinking": 62},
-        "reflection": {"depth": "dialogic"},
-        "code": {"complexity": 4, "lint": 0, "code_level": "intermediate"},
+    # Stub bundle-analyser with its REAL aggregate shape (BundleAnalysisResult)
+    # so the deterministic spine + signal resolver run without the analyser stack.
+    fake_bundle = {
+        "source": "alice",
+        "source_type": "folder",
+        "total_files": 3,
+        "results": [
+            {
+                "file": "chat.txt",
+                "analyser": "conversation-analyser",
+                "result": {"critical_thinking": 62, "routed_to": "conversation-analyser"},
+                "error": None,
+            },
+            {
+                "file": "journal.md",
+                "analyser": "reflection-analyser",
+                "result": {"depth": "dialogic"},
+                "error": None,
+            },
+            {
+                "file": "main.py",
+                "analyser": "code-analyser",
+                "result": {"complexity": 4, "lint": 0, "code_level": "intermediate"},
+                "error": None,
+            },
+        ],
     }
-    monkeypatch.setattr("assessment_lens.assess.bundle.run_bundle", lambda folder: fake_signals)
+    monkeypatch.setattr("assessment_lens.assess.bundle.run_bundle", lambda folder: fake_bundle)
 
     root = tmp_path / "subs"
     alice = root / "alice"
@@ -73,3 +94,24 @@ def test_coverage_from_partial_evidence():
     ev = [Evidence(signal="a", value=10), Evidence(signal="b", value=None)]
     assert alignment.coverage_from_evidence(ev) is Coverage.PARTIAL
     assert alignment.coverage_from_evidence([]) is Coverage.ABSENT
+
+
+def test_get_signal_resolves_against_real_bundle_shape():
+    from assessment_lens.bundle import get_signal
+
+    bundle = {
+        "results": [
+            {
+                "file": "main.py",
+                "analyser": "code-analyser",
+                "result": {"complexity": 4, "nested": {"score": 9}},
+                "error": None,
+            },
+            {"file": "img.png", "analyser": None, "result": None, "error": None},
+        ]
+    }
+    assert get_signal(bundle, "code.complexity") == 4
+    assert get_signal(bundle, "code.nested.score") == 9  # dotted path into result
+    assert get_signal(bundle, "code.missing") is None
+    assert get_signal(bundle, "reflection.depth") is None  # no such analyser routed
+    assert get_signal({"results": []}, "code.complexity") is None

@@ -39,11 +39,19 @@ def main(argv: list[str] | None = None) -> int:
         metavar="ID",
         help="Restrict to these submission ids (subfolder names).",
     )
+    p_assess.add_argument(
+        "--llm",
+        action="store_true",
+        help=(
+            "Narrate each observation with an LLM (narrate-and-cite; never scores). "
+            "Needs the [llm] extra + ANTHROPIC_API_KEY; off by default."
+        ),
+    )
     p_assess.set_defaults(func=_cmd_assess)
 
     p_draft = sub.add_parser(
         "draft-rubric",
-        help="Propose a structured rubric from a free-form specification (near-term).",
+        help="Propose a structured rubric from a free-form specification (review before use).",
     )
     p_draft.add_argument("spec", help="Path to the free-form specification.")
     p_draft.add_argument("-o", "--out", help="Where to write the proposed rubric (.yaml).")
@@ -62,6 +70,16 @@ def _cmd_assess(args: argparse.Namespace) -> int:
     from .rubric import load_rubric
 
     console = Console(stderr=True)
+    use_llm = args.llm
+    if use_llm:
+        from . import llm
+
+        if not llm.available():
+            console.print(
+                "[yellow]LLM narration unavailable[/yellow] (missing [llm] extra or "
+                "ANTHROPIC_API_KEY) — continuing with deterministic observations only."
+            )
+            use_llm = False
     try:
         rubric = load_rubric(args.rubric)
         console.print(
@@ -69,7 +87,7 @@ def _cmd_assess(args: argparse.Namespace) -> int:
             + (f" ({rubric.component})" if rubric.component else "")
             + f" — {len(rubric.rubric)} criteria, {len(rubric.expected_deliverables)} deliverables"
         )
-        result = assess(rubric, args.submissions, only=args.only)
+        result = assess(rubric, args.submissions, only=args.only, llm=use_llm)
         out = write_reports(result, args.out)
     except AssessmentLensError as exc:
         console.print(f"[red]Error:[/red] {exc}")
@@ -83,16 +101,43 @@ def _cmd_assess(args: argparse.Namespace) -> int:
 
 
 def _cmd_draft_rubric(args: argparse.Namespace) -> int:
+    import yaml
     from rich.console import Console
+
+    from .draft_rubric import DraftRubricUnavailable, draft_rubric
+    from .exceptions import AssessmentLensError
 
     console = Console(stderr=True)
     try:
-        from .draft_rubric import draft_rubric
-
-        draft_rubric(args.spec)
-    except NotImplementedError as exc:
-        console.print(f"[yellow]Not yet available:[/yellow] {exc}")
+        proposal = draft_rubric(args.spec)
+    except DraftRubricUnavailable as exc:
+        console.print(
+            f"[yellow]draft-rubric needs the LLM path:[/yellow] {exc}\n"
+            "For now you can author the rubric by hand — see examples/."
+        )
         return 2
+    except AssessmentLensError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        return 1
+
+    rendered = yaml.safe_dump(
+        proposal.model_dump(mode="json", exclude_none=True),
+        sort_keys=False,
+        allow_unicode=True,
+    )
+    header = (
+        "# PROPOSED rubric — drafted by assessment-lens from your specification.\n"
+        "# Review and edit before use; the tool never assigns marks and neither should this file.\n"
+    )
+    if args.out:
+        from pathlib import Path
+
+        Path(args.out).write_text(header + rendered, encoding="utf-8")
+        console.print(
+            f"[green]✓[/green] Proposed rubric written to [bold]{args.out}[/bold] — review before use."
+        )
+    else:
+        print(header + rendered, end="")
     return 0
 
 

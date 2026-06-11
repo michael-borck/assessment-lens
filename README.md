@@ -42,9 +42,11 @@ running `assess` per folder.
 ## Two commands
 
 - **`assess`** — structured rubric + a submissions folder → observations (cohort
-  sheet + per-student reports). **This is v1.**
+  sheet + per-student reports). Add `--llm` for evidence-bound narration on each
+  observation (opt-in; needs the `[llm]` extra + `ANTHROPIC_API_KEY`).
 - **`draft-rubric`** — free-form specification → a *proposed* structured rubric
-  for the lecturer to review/edit. **Near-term** (stubbed today).
+  for the lecturer to **review/edit before use**. LLM-assisted; reads text/markdown
+  directly and `.pdf`/`.docx`/`.pptx` via the `[documents]` extra.
 
 ## Install
 
@@ -55,6 +57,9 @@ uv pip install -e ".[dev]"
 
 # pull the whole analyser stack into the same env (for `assess` to run for real):
 uv pip install -e ".[dev,analysers]"
+
+# opt-in LLM features (narration + draft-rubric):
+uv pip install -e ".[llm]"     # + export ANTHROPIC_API_KEY=...
 ```
 
 `assess` shells out to the `bundle-analyser` CLI (it must be on `PATH`). The
@@ -70,10 +75,13 @@ cp examples/data-viz-rubric.yaml my-rubric.yaml
 # 2. lay out submissions: one subfolder per student/group
 #    submissions/alice/{report.pdf,demo.mp4}  submissions/bob/...
 
-# 3. assess
+# 3. assess (add --llm for narrated observations)
 assessment-lens assess my-rubric.yaml submissions/ -o out/
 #    -> out/cohort-sheet.csv         (row per submission × criterion, sortable)
 #    -> out/reports/<id>.md          (per-student observation sheet, no marks)
+
+# or draft a rubric from a free-form spec, then review/edit it
+assessment-lens draft-rubric assignment-brief.md -o my-rubric.yaml
 ```
 
 ## Rubric schema (the central contract)
@@ -100,15 +108,16 @@ runtime and shows its choice (near-term).
 
 ## Status
 
-**v0.1 scaffold.** Working today (deterministic spine):
+**v0.2.** Working today:
 
 - ✅ Rubric load/validate; deliverable reconciliation; submission discovery
 - ✅ `assess` orchestration + evidence-bound observations + threshold coverage
 - ✅ cohort sheet (CSV) + per-student reports (Markdown)
-- 🚧 `bundle-analyser` integration — invocation flags + signal-path resolver are
-  defensive stubs to **verify against the real CLI output schema**
-- 🚧 LLM narration (`alignment.narrate`) — stubbed; lands with the `[llm]` extra
-- 📋 `draft-rubric` — near-term workstream (stubbed; harvest from `video-analyser`)
+- ✅ `bundle-analyser` integration — verified against the real CLI output schema
+- ✅ LLM narration (`assess --llm`) — narrate-and-cite, bound to evidence; degrades
+  to empty notes when the `[llm]` extra/key is missing
+- ✅ `draft-rubric` — proposes a rubric from a free-form spec (always review before use)
+- 📋 Runtime signal selection when `signals_of_interest` is blank — deferred
 
 ## Development
 

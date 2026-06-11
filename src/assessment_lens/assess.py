@@ -77,10 +77,10 @@ def reconcile_deliverables(rubric: Rubric, folder: Path) -> list[DeliverableObse
     return out
 
 
-def assess_submission(rubric: Rubric, folder: Path) -> SubmissionResult:
+def assess_submission(rubric: Rubric, folder: Path, *, llm: bool = False) -> SubmissionResult:
     """Run the full pipeline for one submission folder."""
     bundle_result = bundle.run_bundle(folder)
-    observations = alignment.observe_submission(rubric, bundle_result)
+    observations = alignment.observe_submission(rubric, bundle_result, llm=llm)
     deliverables = reconcile_deliverables(rubric, folder)
     return SubmissionResult(
         submission_id=folder.name,
@@ -94,13 +94,14 @@ def assess(
     submissions_root: str | Path,
     *,
     only: Iterable[str] | None = None,
+    llm: bool = False,
 ) -> AssessmentResult:
     """Assess a whole cohort. ``only`` optionally restricts to named submission ids."""
     submissions = discover_submissions(submissions_root)
     if only is not None:
         wanted = set(only)
         submissions = [s for s in submissions if s.name in wanted]
-    results = [assess_submission(rubric, folder) for folder in submissions]
+    results = [assess_submission(rubric, folder, llm=llm) for folder in submissions]
     return AssessmentResult(
         assignment=rubric.assignment,
         component=rubric.component,

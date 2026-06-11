@@ -24,15 +24,16 @@ cli.py          → argparse: `assess`, `draft-rubric`
 rubric.py       → load/validate the structured rubric (YAML/JSON) + ext→content-kind
 assess.py       → orchestration: discover submissions, reconcile deliverables, run pipeline
 bundle.py       → subprocess wrapper over the bundle-analyser CLI + signal-path resolver
-alignment.py    → alignment-check: signals → Observations (evidence + threshold coverage); LLM `narrate` is stubbed
+alignment.py    → alignment-check: signals → Observations (evidence + threshold coverage); LLM `narrate` opt-in via --llm
+llm.py          → Anthropic plumbing (key resolution, model defaults, `complete`); everything degradable
 report.py       → cohort sheet (CSV) + per-student reports (Markdown)
-draft_rubric.py → free-form spec → proposed rubric (near-term; stubbed)
+draft_rubric.py → free-form spec → proposed rubric (LLM-assisted; lecturer reviews before use)
 models.py       → the central contract (Rubric/Criterion/Deliverable, Observation/Coverage)
 ```
 
-Two integration points are deliberately defensive stubs — **verify before
-trusting**: `bundle.run_bundle` (invocation flags) and `bundle.get_signal`
-(the nesting of bundle-analyser's JSON aggregate).
+The `bundle.run_bundle` / `bundle.get_signal` integration is pinned to
+bundle-analyser's real output schema (verified against the live CLI) — re-verify
+if bundle-analyser's aggregate shape changes.
 
 ## Toolchain (family standard — run before committing)
 

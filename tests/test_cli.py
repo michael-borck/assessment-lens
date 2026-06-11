@@ -22,10 +22,36 @@ def test_cli_version(capsys):
     assert "assessment-lens" in capsys.readouterr().out
 
 
-def test_cli_draft_rubric_is_friendly_not_yet(tmp_path):
+def test_cli_draft_rubric_friendly_when_llm_unavailable(tmp_path, monkeypatch):
+    from assessment_lens import llm
+
+    def unavailable(*args, **kwargs):
+        raise llm.LLMUnavailable("no key")
+
+    monkeypatch.setattr(llm, "complete", unavailable)
     spec = tmp_path / "spec.txt"
     spec.write_text("do a thing")
-    assert main(["draft-rubric", str(spec)]) == 2  # graceful "not yet"
+    assert main(["draft-rubric", str(spec)]) == 2  # graceful, not a crash
+
+
+def test_cli_draft_rubric_writes_reviewed_proposal(tmp_path, monkeypatch):
+    import json
+
+    from assessment_lens import llm
+
+    proposal = {
+        "assignment": "T",
+        "expected_deliverables": [],
+        "rubric": [{"id": "c1", "description": "One judged dimension"}],
+    }
+    monkeypatch.setattr(llm, "complete", lambda *a, **k: json.dumps(proposal))
+    spec = tmp_path / "spec.txt"
+    spec.write_text("do a thing, marked on one judged dimension")
+    out = tmp_path / "rubric.yaml"
+    assert main(["draft-rubric", str(spec), "-o", str(out)]) == 0
+    text = out.read_text()
+    assert text.startswith("# PROPOSED rubric")
+    assert load_rubric(out).rubric[0].id == "c1"
 
 
 def test_assess_end_to_end_with_stubbed_bundle(tmp_path, monkeypatch):

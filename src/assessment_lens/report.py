@@ -39,6 +39,16 @@ def cohort_sheet_csv(result: AssessmentResult) -> str:
             writer.writerow(
                 [sub.submission_id, "deliverable", dlv.deliverable_id, dlv.status, "", dlv.note]
             )
+        if sub.distinctiveness is not None and sub.distinctiveness.spaces:
+            d = sub.distinctiveness
+            apart = any(s.stands_apart for s in d.spaces)
+            close = any(s.notably_similar for s in d.spaces)
+            status = "stands-apart" if apart else ("notably-similar" if close else "typical")
+            ev = "; ".join(
+                f"{s.space}: nearest={s.nearest_similarity}({s.nearest_submission_id}), mean={s.mean_similarity}"
+                for s in d.spaces
+            )
+            writer.writerow([sub.submission_id, "distinctiveness", "cohort", status, ev, d.note])
     return buf.getvalue()
 
 
@@ -76,6 +86,32 @@ def student_report_markdown(result: AssessmentResult, submission_id: str) -> str
         if obs.note:
             lines.append("")
             lines.append(obs.note)
+        lines.append("")
+
+    if sub.distinctiveness is not None and sub.distinctiveness.spaces:
+        d = sub.distinctiveness
+        lines += [
+            "## Cohort comparison",
+            "",
+            "> A neutral, **direction-agnostic** observation — **not** a verdict. "
+            "Standing apart can mean an out-of-the-box answer *or* a thin one; the "
+            "criteria above carry the quality signal. High similarity is a prompt to "
+            "*look*, never a finding of collusion.",
+            "",
+            d.note,
+            "",
+        ]
+        for s in d.spaces:
+            flags = []
+            if s.stands_apart:
+                flags.append("stands apart")
+            if s.notably_similar:
+                flags.append(f"notably close to `{s.nearest_submission_id}`")
+            tail = f" — {', '.join(flags)}" if flags else ""
+            lines.append(
+                f"- **{s.space}**: nearest `{s.nearest_submission_id}` "
+                f"({s.nearest_similarity}), cohort mean {s.mean_similarity}{tail}"
+            )
         lines.append("")
     return "\n".join(lines)
 

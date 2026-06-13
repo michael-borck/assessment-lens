@@ -44,14 +44,23 @@ llm = [
 documents = [
     "document-analyser>=0.5.0",
 ]
+# Cohort-relative distinctiveness. Only lens-embed's numpy-only CORE is needed —
+# the lens is a *consumer* of the vectors the analysers already produced, not a
+# producer. (For vectors to exist, the analysers must be installed with their
+# own [embeddings] extras; otherwise distinctiveness is simply left None.)
+distinctiveness = [
+    "lens-embed>=0.1.1",
+]
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.0.0",
+    "lens-embed>=0.1.1",  # so the distinctiveness maths is exercised in tests
 ]
 
 [tool.uv.sources]
 bundle-analyser = { path = "../bundle-analyser", editable = true }
 document-analyser = { path = "../document-analyser", editable = true }
+lens-embed = { path = "../lens-embed", editable = true }
 
 [project.scripts]
 assessment-lens = "assessment_lens.cli:main"

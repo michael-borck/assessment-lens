@@ -15,8 +15,9 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Any
 
-from . import alignment, bundle
+from . import alignment, bundle, distinctiveness
 from .exceptions import SubmissionError
 from .models import (
     AssessmentResult,
@@ -77,16 +78,25 @@ def reconcile_deliverables(rubric: Rubric, folder: Path) -> list[DeliverableObse
     return out
 
 
-def assess_submission(rubric: Rubric, folder: Path, *, llm: bool = False) -> SubmissionResult:
-    """Run the full pipeline for one submission folder."""
+def _assess_one(
+    rubric: Rubric, folder: Path, *, llm: bool = False
+) -> tuple[SubmissionResult, dict[str, Any]]:
+    """One submission → its result + the raw bundle aggregate (kept for cohort steps)."""
     bundle_result = bundle.run_bundle(folder)
     observations = alignment.observe_submission(rubric, bundle_result, llm=llm)
     deliverables = reconcile_deliverables(rubric, folder)
-    return SubmissionResult(
+    result = SubmissionResult(
         submission_id=folder.name,
         observations=observations,
         deliverables=deliverables,
     )
+    return result, bundle_result
+
+
+def assess_submission(rubric: Rubric, folder: Path, *, llm: bool = False) -> SubmissionResult:
+    """Run the full pipeline for one submission folder."""
+    result, _ = _assess_one(rubric, folder, llm=llm)
+    return result
 
 
 def assess(
@@ -101,7 +111,18 @@ def assess(
     if only is not None:
         wanted = set(only)
         submissions = [s for s in submissions if s.name in wanted]
-    results = [assess_submission(rubric, folder, llm=llm) for folder in submissions]
+
+    results: list[SubmissionResult] = []
+    vectors: dict[str, list[float] | None] = {}
+    for folder in submissions:
+        result, bundle_result = _assess_one(rubric, folder, llm=llm)
+        results.append(result)
+        vectors[result.submission_id] = distinctiveness.submission_text_vector(bundle_result)
+
+    # Cohort post-pass: distinctiveness is relative, so it can only run once every
+    # submission's vector is in hand. No-op if embeddings/lens-embed are absent.
+    distinctiveness.annotate_cohort(results, vectors)
+
     return AssessmentResult(
         assignment=rubric.assignment,
         component=rubric.component,

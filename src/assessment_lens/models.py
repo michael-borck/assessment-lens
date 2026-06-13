@@ -123,12 +123,55 @@ class DeliverableObservation(BaseModel):
     matched_artefacts: list[str] = Field(default_factory=list)
 
 
+class SpaceDistinctiveness(BaseModel):
+    """One submission's standing in the cohort, in a single comparison space.
+
+    Spaces: ``text`` (pooled artefact embeddings — *how* it's written/said),
+    ``signal`` (z-normalised numeric signal values — its metric profile), and
+    ``combined`` (the mean of the two). The flags are **relative to the cohort's
+    own distribution**, not absolute thresholds — so a tightly-clustered cohort
+    (a prescriptive or weak task) doesn't trip everyone, and a genuine outlier
+    still surfaces.
+    """
+
+    space: str  # "text" | "signal" | "combined"
+    nearest_submission_id: str | None = None
+    nearest_similarity: float | None = None  # max cosine to any other submission
+    mean_similarity: float | None = None  # mean cosine to the rest of the cohort
+    stands_apart: bool = False  # unusually FAR from the cohort (a relative outlier)
+    notably_similar: bool = False  # an unusually CLOSE pair (relative outlier-high)
+
+
+class Distinctiveness(BaseModel):
+    """How a submission compares to the rest of the cohort. **NOT a verdict.**
+
+    Cohort-relative and **direction-agnostic**: standing apart can mean an
+    out-of-the-box answer *or* a thin one — distinctiveness never judges which.
+    It only says "this stands apart — read the criteria to see why"; the other
+    observations carry the quality signal, and the marker interprets. Likewise
+    high similarity is a prompt to *look*, never a finding of collusion.
+
+    Reuses the embeddings the analysers already produced and the signal values
+    already gathered — the lens is a consumer of vectors, not a model-runner.
+    Empty when embeddings/signals are unavailable or <2 submissions are comparable.
+    """
+
+    spaces: list[SpaceDistinctiveness] = Field(default_factory=list)
+    note: str = ""
+
+    def space(self, name: str) -> SpaceDistinctiveness | None:
+        return next((s for s in self.spaces if s.space == name), None)
+
+
 class SubmissionResult(BaseModel):
     """All observations for one Submission (one subfolder = one student/group)."""
 
     submission_id: str
     observations: list[Observation] = Field(default_factory=list)
     deliverables: list[DeliverableObservation] = Field(default_factory=list)
+    # Cohort-relative distinctiveness (neutral, never a verdict). None unless the
+    # [distinctiveness] extra is installed and ≥2 submissions carry embeddings.
+    distinctiveness: Distinctiveness | None = None
 
 
 class AssessmentResult(BaseModel):

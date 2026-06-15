@@ -64,7 +64,7 @@ wheels = [
 
 [[package]]
 name = "assessment-lens"
-version = "0.3.0"
+version = "0.4.0"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },
@@ -77,6 +77,9 @@ analysers = [
     { name = "bundle-analyser" },
 ]
 dev = [
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "lens-contract" },
     { name = "lens-embed" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -90,12 +93,22 @@ documents = [
 llm = [
     { name = "anthropic" },
 ]
+serve = [
+    { name = "fastapi" },
+    { name = "lens-contract" },
+    { name = "uvicorn", extra = ["standard"] },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "anthropic", marker = "extra == 'llm'", specifier = ">=0.40.0" },
     { name = "bundle-analyser", marker = "extra == 'analysers'", editable = "../bundle-analyser" },
     { name = "document-analyser", marker = "extra == 'documents'", editable = "../document-analyser" },
+    { name = "fastapi", marker = "extra == 'dev'", specifier = ">=0.109.0" },
+    { name = "fastapi", marker = "extra == 'serve'", specifier = ">=0.109.0" },
+    { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27.0" },
+    { name = "lens-contract", marker = "extra == 'dev'", editable = "../lens-contract" },
+    { name = "lens-contract", marker = "extra == 'serve'", editable = "../lens-contract" },
     { name = "lens-embed", marker = "extra == 'dev'", editable = "../lens-embed" },
     { name = "lens-embed", marker = "extra == 'distinctiveness'", editable = "../lens-embed" },
     { name = "pydantic", specifier = ">=2.5.0" },
@@ -103,8 +116,9 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "rich", specifier = ">=13.7.0" },
+    { name = "uvicorn", extras = ["standard"], marker = "extra == 'serve'", specifier = ">=0.27.0" },
 ]
-provides-extras = ["analysers", "llm", "documents", "distinctiveness", "dev"]
+provides-extras = ["analysers", "llm", "documents", "distinctiveness", "serve", "dev"]
 
 [[package]]
 name = "beautifulsoup4"
@@ -121,7 +135,7 @@ wheels = [
 
 [[package]]
 name = "bundle-analyser"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "../bundle-analyser" }
 dependencies = [
     { name = "fastapi" },
@@ -562,7 +576,7 @@ wheels = [
 
 [[package]]
 name = "document-analyser"
-version = "0.8.0"
+version = "0.9.0"
 source = { editable = "../document-analyser" }
 dependencies = [
     { name = "fastapi" },

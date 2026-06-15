@@ -13,7 +13,7 @@ for the per-criterion observations.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any
 
@@ -105,8 +105,14 @@ def assess(
     *,
     only: Iterable[str] | None = None,
     llm: bool = False,
+    progress: Callable[[str], None] | None = None,
 ) -> AssessmentResult:
-    """Assess a whole cohort. ``only`` optionally restricts to named submission ids."""
+    """Assess a whole cohort. ``only`` optionally restricts to named submission ids.
+
+    ``progress`` is an optional callable(str) for CLI/UI status lines (one per
+    submission, then the cohort post-pass).
+    """
+    say = progress or (lambda _msg: None)
     submissions = discover_submissions(submissions_root)
     if only is not None:
         wanted = set(only)
@@ -114,13 +120,15 @@ def assess(
 
     results: list[SubmissionResult] = []
     vectors: dict[str, list[float] | None] = {}
-    for folder in submissions:
+    for i, folder in enumerate(submissions, start=1):
+        say(f"assessing {folder.name} ({i}/{len(submissions)})")
         result, bundle_result = _assess_one(rubric, folder, llm=llm)
         results.append(result)
         vectors[result.submission_id] = distinctiveness.submission_text_vector(bundle_result)
 
     # Cohort post-pass: distinctiveness is relative, so it can only run once every
     # submission's vector is in hand. No-op if embeddings/lens-embed are absent.
+    say("computing cohort distinctiveness")
     distinctiveness.annotate_cohort(results, vectors)
 
     return AssessmentResult(

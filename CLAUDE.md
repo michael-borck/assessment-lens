@@ -13,21 +13,27 @@ above them and consume their signals. This one maps signals to a rubric as
 > weight field anywhere in `models.py`. A human assigns every mark. If you ever
 > find yourself adding one, stop — that belongs to the lecturer, not the lens.
 
-Because it's a lens, there is **no** `lens-contract` / FastAPI / `manifest` /
-`serve` here (those are the *analyser* contract). It's a plain CLI consumer that
-composes **only `bundle-analyser`** (one call per submission subfolder).
+It's a CLI consumer that composes **only `bundle-analyser`** (one call per
+submission subfolder). It does **not** route by file type (no `auto_routable`),
+but it *does* now offer an **opt-in HTTP face** (`serve`, behind the `[serve]`
+extra) so a desktop shell / UI can drive it — same `/health` + `/manifest`
+contract as the analysers, `role: lens`. The invariant still holds across every
+surface: it never scores.
 
 ## Architecture
 
 ```
-cli.py          → argparse: `assess`, `draft-rubric`
+cli.py          → argparse: `assess`, `draft-rubric`, `serve`
 rubric.py       → load/validate the structured rubric (YAML/JSON) + ext→content-kind
-assess.py       → orchestration: discover submissions, reconcile deliverables, run pipeline
+assess.py       → orchestration: discover submissions, reconcile deliverables, run pipeline (+ optional progress hook)
 bundle.py       → subprocess wrapper over the bundle-analyser CLI + signal-path resolver
 alignment.py    → alignment-check: signals → Observations (evidence + threshold coverage); LLM `narrate` opt-in via --llm
 llm.py          → Anthropic plumbing (key resolution, model defaults, `complete`); everything degradable
+distinctiveness.py → cohort-relative distinctiveness (three spaces; neutral, never a verdict)
 report.py       → cohort sheet (CSV) + per-student reports (Markdown)
 draft_rubric.py → free-form spec → proposed rubric (LLM-assisted; lecturer reviews before use)
+manifest.py     → MANIFEST (role: lens) for the /manifest contract route   [serve]
+api.py          → FastAPI app: POST /assessments + poll progress + GET result [serve]
 models.py       → the central contract (Rubric/Criterion/Deliverable, Observation/Coverage)
 ```
 

@@ -1,8 +1,10 @@
 """CLI entry point for assessment-lens.
 
-A lens is a consumer, not an analyser — so there is no `serve`/`manifest`
-contract here. Two commands matter: `assess` (rubric + folder -> observations)
-and `draft-rubric` (free-form spec -> proposed rubric; near-term).
+A lens is a *consumer*, not a routable analyser. Core commands: `assess`
+(rubric + folder -> observations) and `draft-rubric` (free-form spec ->
+proposed rubric). It also offers an opt-in `serve` (HTTP API behind the
+`[serve]` extra) so a desktop shell / UI can drive it — same `/health` +
+`/manifest` contract as the analysers, but it still never scores.
 """
 
 from __future__ import annotations
@@ -57,8 +59,31 @@ def main(argv: list[str] | None = None) -> int:
     p_draft.add_argument("-o", "--out", help="Where to write the proposed rubric (.yaml).")
     p_draft.set_defaults(func=_cmd_draft_rubric)
 
+    p_serve = sub.add_parser(
+        "serve",
+        help="Run the HTTP API (for the desktop shell / UIs). Needs the [serve] extra.",
+    )
+    p_serve.add_argument("--host", default="127.0.0.1")
+    p_serve.add_argument("--port", type=int, default=8021)
+    p_serve.set_defaults(func=_cmd_serve)
+
     args = parser.parse_args(argv)
     return args.func(args)
+
+
+def _cmd_serve(args: argparse.Namespace) -> int:
+    from rich.console import Console
+
+    console = Console(stderr=True)
+    try:
+        import uvicorn
+    except ImportError:
+        console.print(
+            "[red]serve needs the [serve] extra:[/red] pip install 'assessment-lens[serve]'"
+        )
+        return 1
+    uvicorn.run("assessment_lens.api:app", host=args.host, port=args.port)
+    return 0
 
 
 def _cmd_assess(args: argparse.Namespace) -> int:

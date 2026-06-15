@@ -46,7 +46,8 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help=(
             "Narrate each observation with an LLM (narrate-and-cite; never scores). "
-            "Needs the [llm] extra + ANTHROPIC_API_KEY; off by default."
+            "Needs the [llm] extra and a provider (ANTHROPIC_API_KEY, or a local "
+            "Ollama via ASSESSMENT_LENS_PROVIDER=ollama); off by default."
         ),
     )
     p_assess.set_defaults(func=_cmd_assess)
@@ -102,7 +103,7 @@ def _cmd_assess(args: argparse.Namespace) -> int:
         if not llm.available():
             console.print(
                 "[yellow]LLM narration unavailable[/yellow] (missing [llm] extra or "
-                "ANTHROPIC_API_KEY) — continuing with deterministic observations only."
+                "no provider configured) — continuing with deterministic observations only."
             )
             use_llm = False
     try:

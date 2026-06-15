@@ -35,9 +35,11 @@ analysers = [
     "bundle-analyser>=0.1.0",
 ]
 # Opt-in LLM features: alignment-check narration + draft-rubric (narrate-and-cite;
-# never scores). Anthropic-only for now, matching conversation-analyser.
+# never scores). Multi-provider: Anthropic by default, or a LOCAL model via Ollama
+# (and any OpenAI-compatible endpoint) for privacy — set ASSESSMENT_LENS_PROVIDER.
 llm = [
     "anthropic>=0.40.0",
+    "openai>=1.12.0",
 ]
 # Binary specs (.pdf/.docx/.pptx) for draft-rubric are extracted via the
 # family's canonical extractor.

@@ -9,7 +9,7 @@ via base_url). Key resolution follows the family pattern — env var first, then
 minimal .env fallback.
 
 Select the provider with ``ASSESSMENT_LENS_PROVIDER`` (anthropic | ollama |
-openai | openrouter; default anthropic). Override the endpoint with
+openai | openrouter | grok | gemini; default anthropic). Override the endpoint with
 ``ASSESSMENT_LENS_BASE_URL`` and the models with ``ASSESSMENT_LENS_NARRATE_MODEL``
 / ``ASSESSMENT_LENS_DRAFT_MODEL``.
 
@@ -32,11 +32,15 @@ PROVIDER_KEYS = {
     "openai": "OPENAI_API_KEY",
     "openrouter": "OPENROUTER_API_KEY",
     "ollama": None,
+    "grok": "XAI_API_KEY",
+    "gemini": "GEMINI_API_KEY",
 }
 
 DEFAULT_BASE_URLS = {
     "openrouter": "https://openrouter.ai/api/v1",
     "ollama": "http://localhost:11434/v1",
+    "grok": "https://api.x.ai/v1",
+    "gemini": "https://generativelanguage.googleapis.com/v1beta/openai",
 }
 
 # Narration is a high-volume 1-2 sentence task (cohort x criteria) -> a small

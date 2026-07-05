@@ -4,12 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "assessment-lens"
-version = "0.5.1"
+version = "0.5.2"
 description = "Signals-based assessment — map analyser signals to a rubric as observations, never grades. A human assigns every mark."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-authors = [{ name = "Michael Borck", email = "michael.borck@curtin.edu.au" }]
+authors = [{ name = "Michael Borck", email = "michael@borck.dev" }]
 keywords = ["assessment", "rubric", "education", "edtech", "signals", "lens", "feedback"]
 classifiers = [
     "Development Status :: 3 - Alpha",

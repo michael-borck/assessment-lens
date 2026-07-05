@@ -39,18 +39,26 @@ lecturer reads observations → assigns marks → writes feedback
 Group/individual splits and mark-combining are handled outside (pre/post) or by
 running `assess` per folder.
 
-## Two commands
+## Three commands
 
 - **`assess`** — structured rubric + a submissions folder → observations (cohort
   sheet + per-student reports). Add `--llm` for evidence-bound narration on each
-  observation (opt-in; needs the `[llm]` extra + `ANTHROPIC_API_KEY`).
+  observation (opt-in; needs the `[llm]` extra + a provider — `ANTHROPIC_API_KEY`
+  by default, or a local Ollama via `ASSESSMENT_LENS_PROVIDER=ollama`).
 - **`draft-rubric`** — free-form specification → a *proposed* structured rubric
   for the lecturer to **review/edit before use**. LLM-assisted; reads text/markdown
   directly and `.pdf`/`.docx`/`.pptx` via the `[documents]` extra.
+- **`serve`** — opt-in HTTP API (`[serve]` extra) so a desktop shell / UI can
+  drive the lens: same `/health` + `/manifest` contract as the analysers, `role:
+  lens`. Binds to `127.0.0.1`; set `ASSESSMENT_LENS_TOKEN` to require a bearer
+  token on the assessment routes.
 
 ## Install
 
 ```bash
+# from PyPI
+pip install assessment-lens
+
 # from source (family layout)
 uv venv && source .venv/bin/activate
 uv pip install -e ".[dev]"
@@ -84,6 +92,11 @@ assessment-lens assess my-rubric.yaml submissions/ -o out/
 assessment-lens draft-rubric assignment-brief.md -o my-rubric.yaml
 ```
 
+Submissions are analysed **sequentially** (one `bundle-analyser` run each), so
+budget accordingly for large cohorts — e.g. 300 submissions × 30 s ≈ 2.5 h. A
+submission that fails to analyse is recorded as an error row in the cohort sheet
+and never aborts the run; re-run just that one with `--only <id>` once fixed.
+
 ## Rubric schema (the central contract)
 
 ```yaml
@@ -108,15 +121,22 @@ runtime and shows its choice (near-term).
 
 ## Status
 
-**v0.2.** Working today:
+**v0.5.** Working today:
 
 - ✅ Rubric load/validate; deliverable reconciliation; submission discovery
-- ✅ `assess` orchestration + evidence-bound observations + threshold coverage
-- ✅ cohort sheet (CSV) + per-student reports (Markdown)
+- ✅ `assess` orchestration + evidence-bound observations + threshold coverage;
+  per-submission fault isolation (one failure never aborts the cohort)
+- ✅ cohort sheet (CSV, spreadsheet-injection-safe) + per-student reports (Markdown)
 - ✅ `bundle-analyser` integration — verified against the real CLI output schema
 - ✅ LLM narration (`assess --llm`) — narrate-and-cite, bound to evidence; degrades
   to empty notes when the `[llm]` extra/key is missing
+- ✅ multi-provider LLM — Anthropic by default; local Ollama or any
+  OpenAI-compatible endpoint via `ASSESSMENT_LENS_PROVIDER`
 - ✅ `draft-rubric` — proposes a rubric from a free-form spec (always review before use)
+- ✅ cohort-relative distinctiveness (`[distinctiveness]` extra) — three comparison
+  spaces; neutral, never a verdict
+- ✅ `serve` (`[serve]` extra) — HTTP face for the desktop shell, optional
+  bearer-token auth via `ASSESSMENT_LENS_TOKEN`
 - 📋 Runtime signal selection when `signals_of_interest` is blank — deferred
 
 ## Development

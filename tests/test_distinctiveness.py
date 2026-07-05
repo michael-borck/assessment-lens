@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 
 import pytest
 
@@ -17,6 +18,13 @@ from assessment_lens.models import (
 
 _HAVE = importlib.util.find_spec("numpy") is not None
 _HAVE_LE = importlib.util.find_spec("lens_embed") is not None
+
+# In CI the full dev environment is guaranteed, so a missing optional dep must
+# FAIL there (a skip would silently drop this whole suite). CI sets
+# ASSESSMENT_LENS_REQUIRE_EXTRAS=1 to disable the skips.
+_REQUIRE = bool(os.environ.get("ASSESSMENT_LENS_REQUIRE_EXTRAS"))
+needs_numpy = pytest.mark.skipif(not _HAVE and not _REQUIRE, reason="needs numpy")
+needs_lens_embed = pytest.mark.skipif(not _HAVE_LE and not _REQUIRE, reason="needs lens-embed")
 
 
 def _bundle_with(*embeddings: list[float] | None) -> dict:
@@ -66,7 +74,7 @@ def test_ignores_wrong_dim_embeddings():
     assert dn.submission_text_vector(_bundle_with([0.1] * 512)) is None
 
 
-@pytest.mark.skipif(not _HAVE, reason="needs numpy")
+@needs_numpy
 def test_pools_text_embeddings():
     vec = dn.submission_text_vector(_bundle_with([1.0] + [0.0] * 383, [0.0, 1.0] + [0.0] * 382))
     assert isinstance(vec, list) and len(vec) == 384
@@ -78,7 +86,7 @@ def test_pools_text_embeddings():
 # --- cohort annotation (text space) ------------------------------------------
 
 
-@pytest.mark.skipif(not _HAVE_LE, reason="needs lens-embed")
+@needs_lens_embed
 def test_annotate_cohort_finds_nearest_neighbour():
     results = [SubmissionResult(submission_id=sid) for sid in ("alice", "bob", "carol")]
     vectors = {
@@ -100,7 +108,7 @@ def test_annotate_cohort_finds_nearest_neighbour():
     assert "collusion" not in by_id["alice"].distinctiveness.note.lower()
 
 
-@pytest.mark.skipif(not _HAVE_LE, reason="needs lens-embed")
+@needs_lens_embed
 def test_relative_flags_need_a_big_enough_cohort():
     # Below _MIN_FOR_RELATIVE submissions: report similarities, but no strong flags.
     results = [SubmissionResult(submission_id=sid) for sid in ("a", "b", "c")]
@@ -112,7 +120,7 @@ def test_relative_flags_need_a_big_enough_cohort():
         assert t.notably_similar is False
 
 
-@pytest.mark.skipif(not _HAVE_LE, reason="needs lens-embed")
+@needs_lens_embed
 def test_relative_outlier_surfaces_in_a_large_cohort():
     # Five tightly-clustered submissions + one orthogonal outlier. The outlier
     # should stand apart; the cluster should not all trip.
@@ -134,7 +142,7 @@ def test_relative_outlier_surfaces_in_a_large_cohort():
     assert all(not by_id[s].distinctiveness.space("text").stands_apart for s in cluster)
 
 
-@pytest.mark.skipif(not _HAVE_LE, reason="needs lens-embed")
+@needs_lens_embed
 def test_annotate_cohort_signal_space():
     # No text vectors at all — distinctiveness still computes from numeric signals.
     results = [
@@ -151,7 +159,7 @@ def test_annotate_cohort_signal_space():
         assert r.distinctiveness.space("text") is None
 
 
-@pytest.mark.skipif(not _HAVE_LE, reason="needs lens-embed")
+@needs_lens_embed
 def test_annotate_cohort_combined_space_when_both_present():
     results = [
         _sub("a", words=100.0),

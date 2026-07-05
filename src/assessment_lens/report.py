@@ -17,15 +17,40 @@ from pathlib import Path
 from .models import AssessmentResult
 
 
+# Cells whose first character is one of these are treated as formulas by
+# Excel/Sheets/LibreOffice (OWASP "CSV injection").
+_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _excel_safe(cell: str) -> str:
+    """Neutralise spreadsheet formula injection.
+
+    Evidence values and LLM notes derive from *student-submitted* content, and
+    the sheet's whole purpose is to be opened in a spreadsheet app — so any cell
+    that would parse as a formula gets a leading apostrophe (renders as text).
+    """
+    if cell.startswith(_FORMULA_PREFIXES):
+        return "'" + cell
+    return cell
+
+
+def _write_row(writer, cells: list[str]) -> None:
+    writer.writerow([_excel_safe(c) for c in cells])
+
+
 def cohort_sheet_csv(result: AssessmentResult) -> str:
     """One row per (submission x criterion) + per (submission x deliverable)."""
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow(["submission", "kind", "id", "coverage_or_status", "evidence", "note"])
     for sub in result.submissions:
+        if sub.error:
+            _write_row(writer, [sub.submission_id, "error", "", "failed", "", sub.error])
+            continue
         for obs in sub.observations:
             evidence = "; ".join(f"{e.signal}={e.value}" for e in obs.evidence)
-            writer.writerow(
+            _write_row(
+                writer,
                 [
                     sub.submission_id,
                     "criterion",
@@ -33,11 +58,12 @@ def cohort_sheet_csv(result: AssessmentResult) -> str:
                     obs.coverage.value if obs.coverage else "",
                     evidence,
                     obs.note,
-                ]
+                ],
             )
         for dlv in sub.deliverables:
-            writer.writerow(
-                [sub.submission_id, "deliverable", dlv.deliverable_id, dlv.status, "", dlv.note]
+            _write_row(
+                writer,
+                [sub.submission_id, "deliverable", dlv.deliverable_id, dlv.status, "", dlv.note],
             )
         if sub.distinctiveness is not None and sub.distinctiveness.spaces:
             d = sub.distinctiveness
@@ -48,7 +74,7 @@ def cohort_sheet_csv(result: AssessmentResult) -> str:
                 f"{s.space}: nearest={s.nearest_similarity}({s.nearest_submission_id}), mean={s.mean_similarity}"
                 for s in d.spaces
             )
-            writer.writerow([sub.submission_id, "distinctiveness", "cohort", status, ev, d.note])
+            _write_row(writer, [sub.submission_id, "distinctiveness", "cohort", status, ev, d.note])
     return buf.getvalue()
 
 
@@ -57,6 +83,21 @@ def student_report_markdown(result: AssessmentResult, submission_id: str) -> str
     sub = next((s for s in result.submissions if s.submission_id == submission_id), None)
     if sub is None:
         raise KeyError(f"No submission '{submission_id}' in result.")
+
+    if sub.error:
+        return "\n".join(
+            [
+                f"# Observations — {submission_id}",
+                f"_Assignment: {result.assignment}"
+                + (f" ({result.component})_" if result.component else "_"),
+                "",
+                "> **Analysis failed for this submission** — no observations were produced. "
+                "Re-run it (e.g. `assess --only " + submission_id + "`) once the cause is fixed.",
+                "",
+                f"```\n{sub.error}\n```",
+                "",
+            ]
+        )
 
     lines: list[str] = [
         f"# Observations — {submission_id}",

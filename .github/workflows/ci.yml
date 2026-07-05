@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    env:
+      # The dev environment is fully guaranteed here, so optional-dep skips
+      # (e.g. the lens-embed distinctiveness tests) must FAIL, not skip.
+      ASSESSMENT_LENS_REQUIRE_EXTRAS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      # `uv pip` resolves from PyPI — the [tool.uv.sources] sibling paths used
+      # for local family development don't exist in CI.
+      - name: Install
+        run: |
+          uv venv --python ${{ matrix.python-version }}
+          uv pip install -e '.[dev]'
+      - name: Format check
+        run: .venv/bin/ruff format --check .
+      - name: Lint
+        run: .venv/bin/ruff check .
+      - name: Tests
+        run: .venv/bin/pytest -v

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "assessment-lens"
-version = "0.4.0"
+version = "0.5.0"
 description = "Signals-based assessment — map analyser signals to a rubric as observations, never grades. A human assigns every mark."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -63,6 +63,7 @@ serve = [
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.0.0",
+    "ruff>=0.6.0",  # the family toolchain — pinned here so CI and local runs agree
     "lens-embed>=0.1.1",  # so the distinctiveness maths is exercised in tests
     "lens-contract>=0.3.0",  # manifest + contract routes for the API tests
     "fastapi>=0.109.0",

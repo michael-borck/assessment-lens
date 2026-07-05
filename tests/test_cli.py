@@ -114,6 +114,33 @@ def test_assess_end_to_end_with_stubbed_bundle(tmp_path, monkeypatch):
     assert "observations, not grades" in md
 
 
+def test_one_failing_submission_never_aborts_the_cohort(tmp_path, monkeypatch):
+    from assessment_lens.exceptions import BundleAnalyserError
+
+    def flaky_bundle(folder):
+        if folder.name == "bob":
+            raise BundleAnalyserError("bundle-analyser timed out on bob")
+        return {"results": []}
+
+    monkeypatch.setattr("assessment_lens.assess.bundle.run_bundle", flaky_bundle)
+
+    root = tmp_path / "subs"
+    for name in ("alice", "bob", "carol"):
+        (root / name).mkdir(parents=True)
+        (root / name / "report.pdf").write_text("x")
+
+    progress: list[str] = []
+    result = assess(load_rubric(EXAMPLE), root, progress=progress.append)
+
+    assert [s.submission_id for s in result.submissions] == ["alice", "bob", "carol"]
+    bob = result.submissions[1]
+    assert "timed out" in bob.error
+    assert bob.observations == [] and bob.deliverables == []
+    alice = result.submissions[0]
+    assert alice.error == "" and alice.observations  # untouched by bob's failure
+    assert any("bob failed" in line for line in progress)
+
+
 def test_coverage_from_partial_evidence():
     from assessment_lens.models import Evidence
 

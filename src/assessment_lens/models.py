@@ -172,6 +172,9 @@ class SubmissionResult(BaseModel):
     # Cohort-relative distinctiveness (neutral, never a verdict). None unless the
     # [distinctiveness] extra is installed and ≥2 submissions carry embeddings.
     distinctiveness: Distinctiveness | None = None
+    # Non-empty when analysis failed for this submission (the other fields are then
+    # empty). One bad submission is recorded here rather than aborting the cohort.
+    error: str = ""
 
 
 class AssessmentResult(BaseModel):

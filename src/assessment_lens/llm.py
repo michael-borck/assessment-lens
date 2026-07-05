@@ -79,7 +79,12 @@ def draft_model() -> str:
 
 
 def _load_env_file() -> None:
-    """Minimal .env loader (cwd upward) — no python-dotenv dependency."""
+    """Minimal .env loader — no python-dotenv dependency.
+
+    Walks from cwd upward but stops at the first project root (a directory with
+    a .git or pyproject.toml), so a stray .env further up the tree — e.g. on a
+    shared drive — is never silently picked up.
+    """
     for parent in [Path.cwd(), *Path.cwd().parents]:
         env_file = parent / ".env"
         if env_file.exists():
@@ -92,6 +97,8 @@ def _load_env_file() -> None:
             except OSError:
                 pass
             return
+        if (parent / ".git").exists() or (parent / "pyproject.toml").exists():
+            return
 
 
 def get_api_key(prov: str | None = None) -> str | None:
@@ -99,10 +106,13 @@ def get_api_key(prov: str | None = None) -> str | None:
 
     Ollama is local and keyless — returns a non-empty sentinel so the openai SDK
     (which requires a non-empty key) is satisfied and ``available()`` reads true.
+    Unknown providers resolve to None; ``complete`` rejects them with the valid list.
     """
     prov = prov or provider()
-    env_var = PROVIDER_KEYS.get(prov)
-    if env_var is None:  # ollama (or unknown local) — no key needed
+    if prov not in PROVIDER_KEYS:
+        return None
+    env_var = PROVIDER_KEYS[prov]
+    if env_var is None:  # ollama — local and keyless
         return "unused"
     if key := os.getenv(env_var):
         return key
@@ -111,8 +121,13 @@ def get_api_key(prov: str | None = None) -> str | None:
 
 
 def available() -> bool:
-    """Is the LLM path usable (SDK installed + key resolvable)? Never raises."""
+    """Is the LLM path usable (known provider + SDK installed + key resolvable)?
+
+    Never raises.
+    """
     prov = provider()
+    if prov not in PROVIDER_KEYS:
+        return False
     try:
         if prov == "anthropic":
             import anthropic  # noqa: F401
@@ -126,9 +141,17 @@ def available() -> bool:
 def complete(prompt: str, *, system: str, model: str, max_tokens: int = 1024) -> str:
     """One narrate-style completion against the configured provider.
 
-    Raises LLMUnavailable when the path is off (missing SDK or key).
+    Raises LLMUnavailable when the path is off (unknown provider, missing SDK
+    or key).
     """
     prov = provider()
+    if prov not in PROVIDER_KEYS:
+        # A typo'd provider must not fall through to a default endpoint with a
+        # sentinel key — fail with the valid names instead.
+        raise LLMUnavailable(
+            f"Unknown provider '{prov}' (ASSESSMENT_LENS_PROVIDER) — "
+            f"valid: {', '.join(sorted(PROVIDER_KEYS))}."
+        )
     api_key = get_api_key(prov)
     if not api_key:
         raise LLMUnavailable(

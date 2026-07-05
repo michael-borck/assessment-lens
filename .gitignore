@@ -8,3 +8,8 @@ dist/
 .coverage
 htmlcov/
 .DS_Store
+
+# secrets — the .env loader in llm.py reads keys from here
+.env
+# personal scratch (the Quick start copies the example rubric here)
+my-rubric.yaml

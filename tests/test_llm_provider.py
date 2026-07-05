@@ -52,3 +52,16 @@ def test_cloud_provider_needs_a_key(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     # no key set and (in this repo) no .env with one -> None
     assert llm.get_api_key("openai") in (None, "")
+
+
+def test_unknown_provider_fails_loudly_not_as_keyless_local(monkeypatch):
+    # A typo'd provider must not be treated like Ollama and sent to a default
+    # endpoint with a sentinel key — that produces a baffling remote error.
+    monkeypatch.setenv("ASSESSMENT_LENS_PROVIDER", "anthropc")
+    assert llm.available() is False
+    assert llm.get_api_key() is None
+    with pytest.raises(llm.LLMUnavailable) as exc:
+        llm.complete("x", system="s", model="m")
+    message = str(exc.value)
+    assert "anthropc" in message  # names the bad value
+    assert "anthropic" in message and "ollama" in message  # lists the valid ones

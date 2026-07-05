@@ -62,7 +62,10 @@ def main(argv: list[str] | None = None) -> int:
 
     p_serve = sub.add_parser(
         "serve",
-        help="Run the HTTP API (for the desktop shell / UIs). Needs the [serve] extra.",
+        help=(
+            "Run the HTTP API (for the desktop shell / UIs). Needs the [serve] extra. "
+            "Set ASSESSMENT_LENS_TOKEN to require a bearer token on the assessment routes."
+        ),
     )
     p_serve.add_argument("--host", default="127.0.0.1")
     p_serve.add_argument("--port", type=int, default=8021)

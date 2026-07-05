@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from . import alignment, bundle, distinctiveness
-from .exceptions import SubmissionError
+from .exceptions import AssessmentLensError, SubmissionError
 from .models import (
     AssessmentResult,
     DeliverableObservation,
@@ -122,7 +122,16 @@ def assess(
     vectors: dict[str, list[float] | None] = {}
     for i, folder in enumerate(submissions, start=1):
         say(f"assessing {folder.name} ({i}/{len(submissions)})")
-        result, bundle_result = _assess_one(rubric, folder, llm=llm)
+        try:
+            result, bundle_result = _assess_one(rubric, folder, llm=llm)
+        except AssessmentLensError as exc:
+            # One bad submission (analyser crash, timeout, corrupt file) must never
+            # abort the cohort: record it and keep going. It surfaces as an error
+            # row in the cohort sheet for the marker to chase up.
+            say(f"{folder.name} failed — recorded, continuing: {exc}")
+            results.append(SubmissionResult(submission_id=folder.name, error=str(exc)))
+            vectors[folder.name] = None
+            continue
         results.append(result)
         vectors[result.submission_id] = distinctiveness.submission_text_vector(bundle_result)
 

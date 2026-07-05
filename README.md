@@ -50,7 +50,7 @@ running `assess` per folder.
   directly and `.pdf`/`.docx`/`.pptx` via the `[documents]` extra.
 - **`serve`** — opt-in HTTP API (`[serve]` extra) so a desktop shell / UI can
   drive the lens: same `/health` + `/manifest` contract as the analysers, `role:
-  lens`. Binds to `127.0.0.1`; set `ASSESSMENT_LENS_TOKEN` to require a bearer
+  lens`. Binds to `127.0.0.1`; set `ASSESSMENT_LENS_AUTH_TOKEN` to require a bearer
   token on the assessment routes.
 
 ## Install
@@ -136,7 +136,7 @@ runtime and shows its choice (near-term).
 - ✅ cohort-relative distinctiveness (`[distinctiveness]` extra) — three comparison
   spaces; neutral, never a verdict
 - ✅ `serve` (`[serve]` extra) — HTTP face for the desktop shell, optional
-  bearer-token auth via `ASSESSMENT_LENS_TOKEN`
+  bearer-token auth via `ASSESSMENT_LENS_AUTH_TOKEN`
 - 📋 Runtime signal selection when `signals_of_interest` is blank — deferred
 
 ## Development

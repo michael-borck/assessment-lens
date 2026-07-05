@@ -70,25 +70,39 @@ def test_unknown_run_404():
 
 
 def test_token_auth_guards_assessment_routes(monkeypatch):
-    monkeypatch.setenv("ASSESSMENT_LENS_TOKEN", "s3cret")
-    client = TestClient(api.app)
+    # lens_contract.add_auth reads the env when the app module loads — the same
+    # order a desktop host uses (set env, then spawn) — so build a fresh app.
+    import importlib
 
-    # contract routes stay open so a shell can discover the lens
-    assert client.get("/health").status_code == 200
-    assert client.get("/manifest").status_code == 200
+    monkeypatch.setenv("ASSESSMENT_LENS_AUTH_TOKEN", "s3cret")
+    importlib.reload(api)
+    try:
+        client = TestClient(api.app)
 
-    # assessment routes are guarded
-    assert client.get("/assessments").status_code == 401
-    assert (
-        client.post("/assessments", json={"rubric": "r.yaml", "submissions": "s"}).status_code
-        == 401
-    )
-    assert client.get("/assessments", headers={"Authorization": "Bearer wrong"}).status_code == 401
-    assert client.get("/assessments", headers={"Authorization": "Bearer s3cret"}).status_code == 200
+        # contract routes stay open so a shell can discover the lens
+        assert client.get("/health").status_code == 200
+        assert client.get("/manifest").status_code == 200
+
+        # assessment routes are guarded
+        assert client.get("/assessments").status_code == 401
+        assert (
+            client.post("/assessments", json={"rubric": "r.yaml", "submissions": "s"}).status_code
+            == 401
+        )
+        assert (
+            client.get("/assessments", headers={"Authorization": "Bearer wrong"}).status_code == 401
+        )
+        assert (
+            client.get("/assessments", headers={"Authorization": "Bearer s3cret"}).status_code
+            == 200
+        )
+    finally:
+        monkeypatch.delenv("ASSESSMENT_LENS_AUTH_TOKEN")
+        importlib.reload(api)
 
 
 def test_no_token_configured_leaves_localhost_api_open(monkeypatch):
-    monkeypatch.delenv("ASSESSMENT_LENS_TOKEN", raising=False)
+    monkeypatch.delenv("ASSESSMENT_LENS_AUTH_TOKEN", raising=False)
     client = TestClient(api.app)
     assert client.get("/assessments").status_code == 200
 

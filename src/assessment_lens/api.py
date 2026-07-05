@@ -11,11 +11,13 @@ record is whatever ``write_reports`` put on disk.
   GET  /assessments/{id}/result  -> AssessmentResult (202 while running)
   GET  /health, GET /manifest    -> the family contract routes
 
-Set ``ASSESSMENT_LENS_TOKEN`` to require ``Authorization: Bearer <token>`` on the
-assessment routes — cheap insurance against another local process driving the
-server (it can read any folder and spend LLM tokens). The contract routes stay
-open so a shell can still discover the lens. Unset (the desktop default), the
-API is open on localhost.
+Set ``ASSESSMENT_LENS_AUTH_TOKEN`` (the family-standard ``{PREFIX}_AUTH_TOKEN``
+convention, enforced by ``lens_contract.add_auth``) to require ``Authorization:
+Bearer <token>`` on the assessment routes — cheap insurance against another
+local process driving the server (it can read any folder and spend LLM tokens).
+``/health`` + ``/manifest`` stay open so a shell can still discover the lens.
+Unset, the API is open on localhost. The token is read when this module loads,
+matching how a desktop host works: it sets the env var, then spawns the server.
 
 Still a lens, not an analyser: it never scores. The result is observations a
 human marks; this server just delivers them to a UI.
@@ -23,16 +25,14 @@ human marks; this server just delivers them to a UI.
 
 from __future__ import annotations
 
-import os
-import secrets
 import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
-from lens_contract import add_contract_routes, add_cors
+from lens_contract import add_auth, add_contract_routes, add_cors
 from pydantic import BaseModel, Field
 
 from .assess import assess
@@ -43,27 +43,12 @@ from .rubric import load_rubric
 
 app = FastAPI(title=MANIFEST["name"], version=MANIFEST["version"])
 add_contract_routes(app, MANIFEST)
+add_auth(app, env_prefix="ASSESSMENT_LENS")  # before add_cors, so CORS wraps the 401s
 add_cors(app, env_prefix="ASSESSMENT_LENS")
 
 # One cohort at a time: assessing shells out to the analyser stack per submission;
 # a marker's desktop doesn't want two cohorts interleaving.
 _executor = ThreadPoolExecutor(max_workers=1)
-
-
-def _require_token(authorization: str | None = Header(default=None)) -> None:
-    """Bearer-token check for the assessment routes; a no-op when no token is set.
-
-    Read per-request (not at import) so the desktop shell can set the token in
-    the child process environment and tests can toggle it.
-    """
-    expected = os.getenv("ASSESSMENT_LENS_TOKEN")
-    if not expected:
-        return
-    supplied = ""
-    if authorization and authorization.lower().startswith("bearer "):
-        supplied = authorization[7:]
-    if not secrets.compare_digest(supplied, expected):
-        raise HTTPException(401, "missing or invalid bearer token")
 
 
 class _Run:
@@ -128,7 +113,7 @@ def _execute(run: _Run, body: StartAssessment) -> None:
             run.status = "failed"
 
 
-@app.post("/assessments", status_code=202, dependencies=[Depends(_require_token)])
+@app.post("/assessments", status_code=202)
 def start_assessment(body: StartAssessment) -> dict:
     run = _Run(body.rubric.stem)
     _runs[run.id] = run
@@ -136,12 +121,12 @@ def start_assessment(body: StartAssessment) -> dict:
     return {"id": run.id}
 
 
-@app.get("/assessments", dependencies=[Depends(_require_token)])
+@app.get("/assessments")
 def list_assessments() -> list[dict]:
     return [run.summary() for run in _runs.values()]
 
 
-@app.get("/assessments/{run_id}", dependencies=[Depends(_require_token)])
+@app.get("/assessments/{run_id}")
 def get_assessment(run_id: str) -> dict:
     run = _runs.get(run_id)
     if run is None:
@@ -149,7 +134,7 @@ def get_assessment(run_id: str) -> dict:
     return run.summary()
 
 
-@app.get("/assessments/{run_id}/result", dependencies=[Depends(_require_token)])
+@app.get("/assessments/{run_id}/result")
 def get_result(run_id: str):
     run = _runs.get(run_id)
     if run is None:

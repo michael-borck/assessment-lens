@@ -19,12 +19,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      # `uv pip` resolves from PyPI — the [tool.uv.sources] sibling paths used
-      # for local family development don't exist in CI.
+      # --no-sources: the [tool.uv.sources] sibling paths used for local family
+      # development don't exist in CI — resolve the family deps from PyPI.
       - name: Install
         run: |
           uv venv --python ${{ matrix.python-version }}
-          uv pip install -e '.[dev]'
+          uv pip install --no-sources -e '.[dev]'
       - name: Format check
         run: .venv/bin/ruff format --check .
       - name: Lint

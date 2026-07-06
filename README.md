@@ -15,6 +15,11 @@ The AI **narrates and cites; it never scores.** A human stays in the loop.
 > above them. It *consumes* analysers (via `bundle-analyser`); it never generates
 > signals. See [ADR-0001](https://github.com/michael-borck/lens-analysers/blob/main/docs/adr/0001-alignment-lives-in-assessment-lens.md).
 
+> **Why trust this design?** The [position paper](docs/position-paper.md) sets
+> out the reasoning — automate the *observation*, keep the *judgment* human —
+> and the research it rests on (Evidence-Centered Design and sixty years of
+> feature-based assessment research), plus what the tool will never do.
+
 ## Why "observations, not grades"
 
 LLMs are inconsistent at the precise act of *marking*. So the lens keeps them off

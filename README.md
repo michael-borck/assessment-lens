@@ -79,6 +79,32 @@ uv pip install -e ".[llm]"     # + export ANTHROPIC_API_KEY=...
 `[analysers]` extra installs it; or point `assessment-lens` at an environment
 where it is already installed.
 
+### Routing config (one-time, for local CLI use)
+
+`assess` → `bundle-analyser` → `auto-analyser` routes each submission file by
+extension. `auto-analyser`'s **built-in defaults point at HTTP services** on
+`localhost:800x` — without a config, a local run routes nothing and every file
+errors with "Cannot connect to localhost:8000". Tell it to call the installed
+specialists as CLIs instead: write `~/.config/auto-analyser/config.yaml`
+(or a `./auto-analyser.yaml` beside where you run from):
+
+```yaml
+analysers:
+  document-analyser: { type: cli, command: document-analyser }
+  code-analyser: { type: cli, command: code-analyser }
+  speech-analyser: { type: cli, command: speech-analyser }
+  video-analyser: { type: cli, command: video-analyser }
+  image-analyser: { type: cli, command: image-analyser }
+  records-analyser: { type: cli, command: records-analyser }
+  diagram-analyser: { type: cli, command: diagram-analyser }
+```
+
+List only the members you have installed (each must expose the family contract:
+a `manifest` subcommand and `<command> <file> --json` → JSON on stdout).
+`conversation-` and `reflection-analyser` are explicit-only — they are never
+auto-routed, so they need no entry. The desktop app writes this config
+automatically; the CLI is the only surface where it's manual.
+
 ## Quick start
 
 ```bash

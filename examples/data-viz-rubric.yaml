@@ -18,6 +18,9 @@ rubric:
   - id: technical-quality
     description: "Code quality and correctness"
     signals_of_interest: [code.complexity, code.lint, code.code_level]
+  - id: effort
+    description: "Time and process invested in the report artifact"
+    signals_of_interest: [provenance.total_editing_time_minutes, provenance.revision_count]
   - id: communication
     description: "Clarity of written and spoken communication"
     # no signals pinned -> alignment-check would select at runtime (near-term)

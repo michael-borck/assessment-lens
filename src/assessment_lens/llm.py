@@ -112,7 +112,12 @@ def get_api_key(prov: str | None = None) -> str | None:
     if prov not in PROVIDER_KEYS:
         return None
     env_var = PROVIDER_KEYS[prov]
-    if env_var is None:  # ollama — local and keyless
+    if env_var is None:
+        # ollama — keyless locally, but a fronted remote (e.g. Caddy basic
+        # auth) uses OLLAMA_API_KEY as the bearer; sentinel keeps local use
+        # working since the SDK requires a non-empty key.
+        if key := os.getenv("OLLAMA_API_KEY"):
+            return key
         return "unused"
     if key := os.getenv(env_var):
         return key
@@ -196,6 +201,12 @@ def _complete_openai_compatible(
             "pip install 'assessment-lens[llm]'"
         ) from exc
     client = openai.OpenAI(api_key=api_key, base_url=base_url())
+    extra: dict = {}
+    if effort := os.getenv("ASSESSMENT_LENS_REASONING_EFFORT"):
+        # Thinking-capable local models (qwen3.5, gemma4, …) burn the token
+        # budget on hidden reasoning and return empty content; reasoning_effort
+        # turns that off per-request (honoured by Ollama 0.33+ /v1).
+        extra["extra_body"] = {"reasoning_effort": effort}
     response = client.chat.completions.create(
         model=model,
         max_tokens=max_tokens,
@@ -203,5 +214,6 @@ def _complete_openai_compatible(
             {"role": "system", "content": system},
             {"role": "user", "content": prompt},
         ],
+        **extra,
     )
     return (response.choices[0].message.content or "").strip()

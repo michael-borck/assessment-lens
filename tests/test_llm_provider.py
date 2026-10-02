@@ -36,7 +36,15 @@ def test_ollama_provider_is_local_and_keyless(monkeypatch):
     assert llm.narrate_model() == llm.DEFAULT_LOCAL_MODEL
     assert llm.draft_model() == llm.DEFAULT_LOCAL_MODEL
     # keyless: get_api_key returns a non-empty sentinel so the openai SDK is happy
+    monkeypatch.delenv("OLLAMA_API_KEY", raising=False)
     assert llm.get_api_key("ollama") == "unused"
+
+
+def test_ollama_remote_key(monkeypatch):
+    # A fronted remote (e.g. Caddy basic auth) uses OLLAMA_API_KEY as the bearer
+    monkeypatch.setenv("ASSESSMENT_LENS_PROVIDER", "ollama")
+    monkeypatch.setenv("OLLAMA_API_KEY", "MGMT1003")
+    assert llm.get_api_key("ollama") == "MGMT1003"
 
 
 def test_env_overrides_win(monkeypatch):

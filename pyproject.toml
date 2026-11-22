@@ -93,3 +93,11 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint]
+# The classic default set. Pinned explicitly so a future ruff release that
+# widens its defaults can't turn CI red on unrelated rules.
+select = ["E4", "E7", "E9", "F"]
+# This checkout lives on an exFAT volume that reports every file as executable;
+# git records 644 and CI checkouts are correct, so EXE002 is always noise here.
+ignore = ["EXE002"]

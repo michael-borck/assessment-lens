@@ -168,3 +168,33 @@ def test_get_signal_resolves_against_real_bundle_shape():
     assert get_signal(bundle, "code.missing") is None
     assert get_signal(bundle, "reflection.depth") is None  # no such analyser routed
     assert get_signal({"results": []}, "code.complexity") is None
+
+
+def test_cli_assess_writes_cohort_sheet(tmp_path, monkeypatch):
+    """The `assess` subcommand wires rubric -> bundle -> reports end to end."""
+    monkeypatch.setattr(
+        "assessment_lens.assess.bundle.run_bundle",
+        lambda folder: {"results": []},
+    )
+    root = tmp_path / "subs"
+    alice = root / "alice"
+    alice.mkdir(parents=True)
+    (alice / "report.pdf").write_text("x")
+    out = tmp_path / "out"
+
+    assert main(["assess", str(EXAMPLE), str(root), "-o", str(out)]) == 0
+    assert (out / "cohort-sheet.csv").exists()
+    assert (out / "reports" / "alice.md").exists()
+
+
+def test_cli_assess_missing_rubric_returns_error(tmp_path):
+    root = tmp_path / "subs"
+    (root / "alice").mkdir(parents=True)
+    assert main(["assess", str(tmp_path / "nope.yaml"), str(root)]) == 1
+
+
+def test_cli_help_exits_zero(capsys):
+    with pytest.raises(SystemExit) as exc:
+        main(["--help"])
+    assert exc.value.code == 0
+    assert "assess" in capsys.readouterr().out
